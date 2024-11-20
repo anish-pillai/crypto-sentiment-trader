@@ -3,14 +3,21 @@ import * as tf from '@tensorflow/tfjs';
 import * as use from '@tensorflow-models/universal-sentence-encoder';
 import NodeCache from 'node-cache';
 import { SentimentData } from '../types/api';
+import fetch from 'node-fetch';
 
 const cache = new NodeCache({ stdTTL: 300 }); // Cache for 5 minutes
 
 class SentimentService {
   private twitterClient: TwitterApi;
   private model: use.UniversalSentenceEncoder | null = null;
-  private readonly cryptoKeywords = ['bitcoin', 'btc', 'ethereum', 'eth', 'crypto'];
-  
+  private readonly cryptoKeywords = [
+    'bitcoin',
+    'btc',
+    'ethereum',
+    'eth',
+    'crypto',
+  ];
+
   constructor() {
     if (process.env.TWITTER_BEARER_TOKEN) {
       this.twitterClient = new TwitterApi(process.env.TWITTER_BEARER_TOKEN);
@@ -34,17 +41,23 @@ class SentimentService {
     }
 
     try {
-      const tweets = await this.getTweets();
-      const sentimentScore = await this.calculateSentiment(tweets);
-      
+      const [tweets, redditPosts] = await Promise.all([
+        this.getTweets(),
+        this.getRedditPosts(),
+      ]);
+      const sentimentScore = await this.calculateSentiment([
+        ...tweets,
+        ...redditPosts,
+      ]);
+
       const result: SentimentData = {
         score: sentimentScore,
         trend: this.getTrend(sentimentScore),
         lastUpdated: new Date().toISOString(),
         sources: {
           twitter: tweets.length,
-          reddit: 0
-        }
+          reddit: redditPosts.length,
+        },
       };
 
       cache.set('sentiment', result);
@@ -61,15 +74,29 @@ class SentimentService {
     }
 
     try {
-      const tweets = await this.twitterClient.v2.search({
-        query: this.cryptoKeywords.map(k => `#${k}`).join(' OR '),
-        max_results: 100,
-        'tweet.fields': ['text', 'public_metrics']
-      });
-
-      return tweets.data.data.map(tweet => tweet.text);
+      const tweets = await this.twitterClient.v2.search(
+        'crypto OR bitcoin OR ethereum',
+        {
+          'tweet.fields': 'created_at',
+          max_results: 100,
+        }
+      );
+      return tweets.data.map((tweet) => tweet.text);
     } catch (error) {
       console.error('Twitter API error:', error);
+      return [];
+    }
+  }
+
+  private async getRedditPosts(): Promise<string[]> {
+    try {
+      const response = await fetch(
+        'https://www.reddit.com/r/cryptocurrency/new.json?limit=100'
+      );
+      const data = await response.json();
+      return data.data.children.map((post) => post.data.title);
+    } catch (error) {
+      console.error('Error fetching Reddit posts:', error);
       return [];
     }
   }
@@ -83,10 +110,10 @@ class SentimentService {
       // Get embeddings for all texts
       const embeddings = await this.model.embed(texts);
       const sentiments = await this.predictSentiments(embeddings);
-      
+
       // Calculate weighted average based on engagement metrics
       const averageSentiment = tf.mean(sentiments).dataSync()[0];
-      
+
       // Normalize to [-1, 1] range
       return Math.max(-1, Math.min(1, averageSentiment));
     } catch (error) {
@@ -100,16 +127,16 @@ class SentimentService {
     // In a production environment, you would use a fine-tuned model
     const weights = tf.randomNormal([512, 1]);
     const biases = tf.randomNormal([1]);
-    
+
     const predictions = tf.tidy(() => {
       const scores = embeddings.matMul(weights).add(biases);
       return tf.tanh(scores); // Normalize to [-1, 1]
     });
-    
+
     // Cleanup
     weights.dispose();
     biases.dispose();
-    
+
     return predictions;
   }
 
@@ -126,8 +153,8 @@ class SentimentService {
       lastUpdated: new Date().toISOString(),
       sources: {
         twitter: 0,
-        reddit: 0
-      }
+        reddit: 0,
+      },
     };
   }
 }

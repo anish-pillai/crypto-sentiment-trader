@@ -176,3 +176,5 @@ export const configApi = {
     }
   },
 };
+
+export const tradeApi = tradingApi;

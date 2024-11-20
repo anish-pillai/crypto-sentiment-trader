@@ -1,49 +1,63 @@
 import React from 'react';
 import { useStore } from '../store/useStore';
-import { Briefcase, PlayCircle, History } from 'lucide-react';
 
 export const TradingModeSelector: React.FC = () => {
   const { tradingMode, setTradingMode } = useStore();
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 mb-8 transition-colors duration-200">
-      <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white">Trading Mode</h2>
-      <div className="grid grid-cols-3 gap-4">
-        <button
-          onClick={() => setTradingMode('live')}
-          className={`flex flex-col items-center p-4 rounded-lg transition-all duration-200
-            ${tradingMode === 'live'
-              ? 'bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-400 ring-2 ring-blue-500'
-              : 'bg-gray-50 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-600'
+    <div className='mb-8'>
+      <div className='flex justify-between items-center'>
+        <h2 className='text-xl font-semibold text-gray-900 dark:text-white'>
+          Trading Mode
+        </h2>
+        <div className='flex space-x-4'>
+          <button
+            className={`px-4 py-2 rounded ${
+              tradingMode === 'live'
+                ? 'bg-blue-500 text-white'
+                : 'bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white'
             }`}
-        >
-          <Briefcase className="h-6 w-6 mb-2" />
-          <span className="text-sm font-medium">Live Trading</span>
-        </button>
-
-        <button
-          onClick={() => setTradingMode('paper')}
-          className={`flex flex-col items-center p-4 rounded-lg transition-all duration-200
-            ${tradingMode === 'paper'
-              ? 'bg-green-100 dark:bg-green-900 text-green-600 dark:text-green-400 ring-2 ring-green-500'
-              : 'bg-gray-50 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-600'
+            onClick={() => setTradingMode('live')}
+          >
+            Live
+          </button>
+          <button
+            className={`px-4 py-2 rounded ${
+              tradingMode === 'paper'
+                ? 'bg-blue-500 text-white'
+                : 'bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white'
             }`}
-        >
-          <PlayCircle className="h-6 w-6 mb-2" />
-          <span className="text-sm font-medium">Paper Trading</span>
-        </button>
-
-        <button
-          onClick={() => setTradingMode('backtest')}
-          className={`flex flex-col items-center p-4 rounded-lg transition-all duration-200
-            ${tradingMode === 'backtest'
-              ? 'bg-purple-100 dark:bg-purple-900 text-purple-600 dark:text-purple-400 ring-2 ring-purple-500'
-              : 'bg-gray-50 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-600'
+            onClick={() => setTradingMode('paper')}
+          >
+            Paper
+          </button>
+          <button
+            className={`px-4 py-2 rounded ${
+              tradingMode === 'backtest'
+                ? 'bg-blue-500 text-white'
+                : 'bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white'
             }`}
-        >
-          <History className="h-6 w-6 mb-2" />
-          <span className="text-sm font-medium">Backtesting</span>
-        </button>
+            onClick={() => setTradingMode('backtest')}
+          >
+            Backtest
+          </button>
+        </div>
+      </div>
+      <div className='mt-4 p-4 bg-white dark:bg-gray-800 rounded-lg shadow-md'>
+        <h3 className='text-lg font-semibold text-gray-900 dark:text-white mb-2'>
+          {tradingMode === 'live'
+            ? 'Live Trading'
+            : tradingMode === 'paper'
+            ? 'Paper Trading'
+            : 'Backtest'}
+        </h3>
+        <p className='text-gray-600 dark:text-gray-400'>
+          {tradingMode === 'live'
+            ? 'Trade with real funds using exchange API integration.'
+            : tradingMode === 'paper'
+            ? 'Practice trading with virtual funds in a risk-free environment.'
+            : 'Check if your strategy works with past data.'}
+        </p>
       </div>
     </div>
   );

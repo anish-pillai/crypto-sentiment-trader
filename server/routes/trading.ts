@@ -8,10 +8,10 @@ const DEMO_USER_ID = 'demo-user';
 router.post('/execute', async (req, res) => {
   try {
     const { exchange, symbol } = req.body;
-    
+
     // Get latest trading signal
     const signal = await tradingSignalService.generateSignals(symbol);
-    
+
     // Execute trade based on signal
     const position = await tradingService.executeTrade(
       DEMO_USER_ID,
@@ -25,9 +25,9 @@ router.post('/execute', async (req, res) => {
     res.json({ success: true, position });
   } catch (error: any) {
     console.error('Trade execution error:', error);
-    res.status(400).json({ 
+    res.status(400).json({
       error: error.message || 'Failed to execute trade',
-      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined,
     });
   }
 });
@@ -42,6 +42,16 @@ router.get('/positions/:exchange', async (req, res) => {
   } catch (error: any) {
     console.error('Error fetching positions:', error);
     res.status(400).json({ error: error.message });
+  }
+});
+
+router.post('/place', async (req, res) => {
+  try {
+    const { symbol, amount, side } = req.body;
+    const result = await tradingService.placeTrade(symbol, amount, side);
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to place trade' });
   }
 });
 

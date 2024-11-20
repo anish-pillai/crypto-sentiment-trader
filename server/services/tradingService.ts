@@ -1,7 +1,8 @@
 import * as ccxt from 'ccxt';
 import { exchangeService } from './exchangeService';
 import { tradingSignalService } from './tradingSignalService';
-import { TradingPosition, OrderType, RiskParameters } from '../types/api';
+import { TradingPosition, SignalStrength, RiskParameters } from '../types/api';
+import { ExchangeApi } from '../api/exchangeApi';
 
 class TradingService {
   private readonly DEFAULT_RISK_PARAMS: RiskParameters = {
@@ -9,8 +10,19 @@ class TradingService {
     stopLossPercentage: 0.02, // 2% stop loss
     takeProfitPercentage: 0.05, // 5% take profit
     maxOpenPositions: 3,
-    minimumConfidence: 0.7
+    minimumConfidence: 0.7,
   };
+
+  private exchangeApi: ExchangeApi;
+
+  constructor() {
+    // Ensure the exchangeId is valid
+    const exchangeId = 'binance'; // Example exchangeId, replace with actual value
+    const apiKey = 'your_api_key'; // Replace with actual API key
+    const secret = 'your_secret'; // Replace with actual secret
+
+    this.exchangeApi = new ExchangeApi(exchangeId, apiKey, secret);
+  }
 
   async executeTrade(
     userId: string,
@@ -74,8 +86,10 @@ class TradingService {
     const buyOrder = await client.createOrder(symbol, 'market', 'buy', size);
 
     // Calculate stop loss and take profit levels
-    const stopLossPrice = price * (1 - this.DEFAULT_RISK_PARAMS.stopLossPercentage);
-    const takeProfitPrice = price * (1 + this.DEFAULT_RISK_PARAMS.takeProfitPercentage);
+    const stopLossPrice =
+      price * (1 - this.DEFAULT_RISK_PARAMS.stopLossPercentage);
+    const takeProfitPrice =
+      price * (1 + this.DEFAULT_RISK_PARAMS.takeProfitPercentage);
 
     // Place stop loss order
     const stopLossOrder = await client.createOrder(
@@ -110,8 +124,8 @@ class TradingService {
       orders: {
         entry: buyOrder.id,
         stopLoss: stopLossOrder.id,
-        takeProfit: takeProfitOrder.id
-      }
+        takeProfit: takeProfitOrder.id,
+      },
     };
   }
 
@@ -139,8 +153,8 @@ class TradingService {
       status: 'closed',
       closeTime: new Date().toISOString(),
       orders: {
-        exit: sellOrder.id
-      }
+        exit: sellOrder.id,
+      },
     };
   }
 
@@ -167,16 +181,18 @@ class TradingService {
       if (!client) throw new Error('Exchange not connected');
 
       const positions = await client.fetchPositions();
-      return positions.filter(pos => pos.contracts > 0).map(pos => ({
-        id: pos.id,
-        symbol: pos.symbol,
-        type: 'long',
-        entryPrice: pos.entryPrice,
-        size: pos.contracts,
-        status: 'open',
-        openTime: new Date(pos.timestamp).toISOString(),
-        unrealizedPnl: pos.unrealizedPnl
-      }));
+      return positions
+        .filter((pos) => pos.contracts > 0)
+        .map((pos) => ({
+          id: pos.id,
+          symbol: pos.symbol,
+          type: 'long',
+          entryPrice: pos.entryPrice,
+          size: pos.contracts,
+          status: 'open',
+          openTime: new Date(pos.timestamp).toISOString(),
+          unrealizedPnl: pos.unrealizedPnl,
+        }));
     } catch (error) {
       console.error('Error fetching positions:', error);
       return [];
@@ -186,10 +202,12 @@ class TradingService {
   async monitorPositions(userId: string, exchange: string): Promise<void> {
     try {
       const positions = await this.getOpenPositions(userId, exchange);
-      
+
       for (const position of positions) {
-        const currentPrice = await tradingSignalService.getCurrentPrice(position.symbol);
-        
+        const currentPrice = await tradingSignalService.getCurrentPrice(
+          position.symbol
+        );
+
         // Check stop loss
         if (currentPrice <= position.stopLoss!) {
           await this.closeLongPosition(
@@ -200,7 +218,7 @@ class TradingService {
           );
           console.log(`Stop loss triggered for position ${position.id}`);
         }
-        
+
         // Check take profit
         if (currentPrice >= position.takeProfit!) {
           await this.closeLongPosition(
@@ -214,6 +232,16 @@ class TradingService {
       }
     } catch (error) {
       console.error('Error monitoring positions:', error);
+    }
+  }
+
+  async placeTrade(symbol: string, amount: number, side: 'buy' | 'sell') {
+    try {
+      const order = await this.exchangeApi.createOrder(symbol, amount, side);
+      return order;
+    } catch (error) {
+      console.error('Error placing trade:', error);
+      throw new Error('Failed to place trade');
     }
   }
 }

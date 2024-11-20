@@ -15,6 +15,8 @@ import {
   configApi,
   backtestApi,
   tradingApi,
+  sentimentApi,
+  tradeApi,
 } from '../services/api';
 
 interface Store {
@@ -46,6 +48,14 @@ interface Store {
     symbol: string,
     startDate: Date,
     endDate: Date
+  ) => Promise<void>;
+
+  fetchSentimentData: () => Promise<void>;
+
+  placeTrade: (
+    symbol: string,
+    amount: number,
+    side: 'buy' | 'sell'
   ) => Promise<void>;
 }
 
@@ -142,6 +152,15 @@ export const useStore = create<Store>()(
           endDate,
         });
         set({ backtestResults: results });
+      },
+
+      fetchSentimentData: async () => {
+        const sentimentData = await sentimentApi.getSentiment();
+        set({ sentimentData });
+      },
+
+      placeTrade: async (symbol, amount, side) => {
+        await tradeApi.placeTrade(symbol, amount, side);
       },
     }),
     {

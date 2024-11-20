@@ -2,7 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import { exchangeRouter } from './routes/exchange';
-import { sentimentRouter } from './routes/sentiment';
+import sentimentRouter from './routes/sentiment';
 import { tradingRouter } from './routes/trading';
 import { backtestRouter } from './routes/backtest';
 import { paperTradingRouter } from './routes/paperTrading';
@@ -23,20 +23,27 @@ app.get('/health', (req, res) => {
 
 // API routes
 app.use('/api/exchange', exchangeRouter);
-app.use('/api/sentiment', sentimentRouter);
+app.use('/api/sentiment', sentimentRouter); // Ensure this line is correct
 app.use('/api/trading', tradingRouter);
 app.use('/api/backtest', backtestRouter);
 app.use('/api/paper', paperTradingRouter);
 app.use('/api/config', configRouter);
 
 // Global error handler
-app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
-  console.error('Server error:', err);
-  res.status(500).json({
-    error: 'Internal server error',
-    message: process.env.NODE_ENV === 'development' ? err.message : undefined
-  });
-});
+app.use(
+  (
+    err: any,
+    req: express.Request,
+    res: express.Response,
+    next: express.NextFunction
+  ) => {
+    console.error('Server error:', err);
+    res.status(500).json({
+      error: 'Internal server error',
+      message: process.env.NODE_ENV === 'development' ? err.message : undefined,
+    });
+  }
+);
 
 // Start server
 const server = app.listen(PORT, () => {
