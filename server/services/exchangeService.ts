@@ -1,5 +1,6 @@
 import * as ccxt from 'ccxt';
 import { ExchangeCredentials, ExchangeBalance } from '../types/api';
+import pool from '../db';
 
 class ExchangeService {
   private exchanges: Map<string, ccxt.Exchange> = new Map();
@@ -119,30 +120,21 @@ class ExchangeService {
     exchange: string
   ): Promise<ExchangeBalance> {
     try {
-      const key = `${userId}:${exchange}`;
-      const client = this.exchanges.get(key);
-      if (!client) {
-        throw new Error('Exchange not connected');
+      const client = await pool.connect();
+      const result = await client.query(
+        'SELECT * FROM balances WHERE user_id = $1 AND exchange = $2',
+        [userId, exchange]
+      );
+      client.release();
+
+      if (result.rows.length === 0) {
+        throw new Error('No balances found');
       }
 
-      const balanceData = await client.fetchBalance();
-      const balances = Object.entries(balanceData.total)
-        .filter(([_, value]) => value > 0)
-        .map(([asset, total]) => ({
-          asset,
-          free: balanceData.free[asset] || 0,
-          locked: (balanceData.used && balanceData.used[asset]) || 0,
-          total,
-        }));
-
-      return {
-        exchange,
-        balances,
-        lastUpdated: new Date().toISOString(),
-      };
+      return result.rows[0];
     } catch (error) {
       console.error('Failed to fetch balances:', error);
-      throw this.handleExchangeError(error);
+      throw new Error('Failed to fetch balances. Please try again.');
     }
   }
 

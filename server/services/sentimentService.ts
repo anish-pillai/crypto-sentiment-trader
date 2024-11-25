@@ -1,5 +1,5 @@
 import { TwitterApi } from 'twitter-api-v2';
-import * as tf from '@tensorflow/tfjs';
+import * as tf from '@tensorflow/tfjs-node';
 import * as use from '@tensorflow-models/universal-sentence-encoder';
 import NodeCache from 'node-cache';
 import { SentimentData } from '../types/api';
@@ -81,10 +81,30 @@ class SentimentService {
           max_results: 100,
         }
       );
-      return tweets.data.map((tweet) => tweet.text);
+      if (Array.isArray(tweets.data)) {
+        return tweets.data.map((tweet) => tweet.text);
+      } else {
+        console.error(
+          'Expected tweets.data to be an array, but got:',
+          tweets.data
+        );
+        return [];
+      }
     } catch (error) {
-      console.error('Twitter API error:', error);
-      return [];
+      if (error.code === 429) {
+        const resetTime = error.rateLimit.reset * 1000;
+        const waitTime = resetTime - Date.now();
+        console.warn(
+          `Twitter Rate limit exceeded. Retrying in ${
+            waitTime / 1000
+          } seconds...`
+        );
+        await new Promise((resolve) => setTimeout(resolve, waitTime));
+        return this.getTweets();
+      } else {
+        console.error('Twitter API error:', error);
+        return [];
+      }
     }
   }
 
@@ -121,8 +141,7 @@ class SentimentService {
       return 0;
     }
   }
-
-  private async predictSentiments(embeddings: tf.Tensor): Promise<tf.Tensor> {
+  private async predictSentiments(embeddings: tf.Tensor2D): Promise<tf.Tensor> {
     // This is a simplified sentiment classification
     // In a production environment, you would use a fine-tuned model
     const weights = tf.randomNormal([512, 1]);
